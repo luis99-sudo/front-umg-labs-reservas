@@ -6,24 +6,12 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://umg-api-django.onrender
 
 const api = axios.create({ baseURL: API_URL });
 
-// Adjunta automáticamente el ID del usuario logueado como X-User-ID en cada
-// request. El backend lo usa como "solicitante" para validar permisos
-// (creador o Admin) en /reservas/{id}/cancelar/ y /reservas/{id}/modificar/,
-// y para registrar en la bitácora quién ejecutó la acción. Nunca se pide
-// manualmente: siempre es la sesión activa, nunca una selección del usuario.
-api.interceptors.request.use((config) => {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const usuario = JSON.parse(raw);
-      if (usuario?.UMG_ID) {
-        config.headers['X-User-ID'] = usuario.UMG_ID;
-      }
-    }
-  } catch {
-    // Storage corrupto: seguimos sin el header: el backend respalda con 400/403.
-  }
-  return config;
-});
+// Importante: NO se agrega ningún header custom (como X-User-ID) por
+// interceptor. El backend no tiene 'x-user-id' en CORS_ALLOW_HEADERS, así
+// que cualquier header custom convierte hasta un GET simple en una
+// "non-simple request" que dispara preflight, y el navegador la bloquea
+// por completo. El "solicitante" para cancelar/modificar reservas se manda
+// como query param o campo del body (ver src/api/sesion.js y
+// src/api/reservas.js), que la vista del backend también acepta.
 
 export default api;
